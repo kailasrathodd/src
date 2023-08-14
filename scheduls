@@ -1,0 +1,199 @@
+import React, { useEffect, useState } from 'react';
+import { View, StyleSheet, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { useDispatch, useSelector } from 'react-redux';
+import Header from '../../Components/HeaderComp';
+import MapplsPlacePicker from '../Map/MapplsPlacePicker';
+import {
+  eLocPick,
+  getBasicDetailsAPI,
+  RideUpdateAPI,
+} from '../../features/basicdetails/basicdetail';
+import MapplsUIWidgets from 'mappls-search-widgets-react-native';
+import setVectorIcon from '../../Components/VectorComponents';
+import { resetPin, typeLocation } from '../../features/location/location';
+import { getFontSize } from '../../utility/responsive';
+
+const SearchSchedule = ({ navigation }) => {
+  const dispatch = useDispatch();
+  const rider_id = useSelector(state => state.auth.user?._id);
+  const riderUpdate = useSelector(state => state.basicDetail?.riderUpdate?.Rider_Data);
+
+  const [isLoading, setIsLoading] = useState(false);
+  const [location, setLocation] = useState({
+    placeName: '',
+    placeAddress: '',
+    mapplsPin: '',
+  });
+
+  useEffect(() => {
+    if (riderUpdate?.pickup_address !== null) {
+      navigation.navigate('SearchSchedule');
+    }
+  }, [riderUpdate, location]);
+
+  const searchbar = async (type) => {
+    try {
+      setIsLoading(true);
+
+      const res = await MapplsUIWidgets.searchWidget({
+        toolbarColor: '#ffffff',
+        bridge: true,
+      });
+
+      const { placeName, placeAddress, mapplsPin } = res.eLocation;
+
+      setLocation({
+        placeName,
+        placeAddress,
+        mapplsPin,
+      });
+
+      const eLocPickResponse = await dispatch(eLocPick(mapplsPin));
+
+      if (eLocPickResponse.payload.status === 200) {
+        if (type === 'PickUp') {
+          await rideUpdate(
+            eLocPickResponse.payload.data.latitude,
+            eLocPickResponse.payload.data.longitude,
+            res.eLocation.placeName,
+            res.eLocation.placeAddress,
+          );
+        } else if (type === 'Drop') {
+          // Handle Drop Location update
+        }
+      }
+
+      setIsLoading(false);
+    } catch (error) {
+      console.error(error);
+      setIsLoading(false);
+    }
+  };
+
+  const rideUpdate = async (latitude, longitude, placeName, placeAddress) => {
+    try {
+      // ... your existing code ...
+
+      setIsLoading(false);
+    } catch (error) {
+      console.error(error);
+      setIsLoading(false);
+    }
+  };
+
+  // ... your other functions ...
+
+  return (
+    <View style={styles.container}>
+      <MapplsPlacePicker />
+
+      <View style={styles.headerContainer}>
+        {/* ... your Header component ... */}
+      </View>
+
+      <View style={styles.locationContainer}>
+        <LocationSection
+          label="Pickup Location"
+          onPress={() => {
+            dispatch(resetPin(true));
+            dispatch(typeLocation('PickUp'));
+            searchbar('PickUp');
+          }}
+          address={riderUpdate?.pickup_address || 'Enter Your Pickup Location'}
+        />
+
+        <LocationSection
+          label="Drop Location"
+          onPress={() => {
+            dispatch(resetPin(true));
+            dispatch(typeLocation('Drop'));
+            searchbar('Drop');
+          }}
+          address={riderUpdate?.drop_address || 'Enter Your Drop Location'}
+        />
+      </View>
+
+      {isLoading && (
+        <View style={styles.loaderContainer}>
+          <ActivityIndicator size="large" color="#000" />
+        </View>
+      )}
+    </View>
+  );
+};
+
+const LocationSection = ({ label, onPress, address }) => (
+  <View>
+    <Text style={styles.locationLabel}>
+      {setVectorIcon({
+        type: 'Entypo',
+        name: 'controller-record',
+        size: getFontSize(15),
+        color: '#000',
+      })}{' '}
+      {label}
+    </Text>
+    <TouchableOpacity style={styles.locationInputContainer} onPress={onPress}>
+      <Text style={styles.locationInput}>{address}</Text>
+    </TouchableOpacity>
+  </View>
+);
+
+const styles = StyleSheet.create({
+  container: {
+    position: 'relative',
+    height: '100%',
+  },
+  headerContainer: {
+    zIndex: 1,
+    position: 'absolute',
+    width: '100%',
+    paddingHorizontal: 20,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  locationContainer: {
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+    backgroundColor: '#fFf',
+    borderRadius: 20,
+    width: '90%',
+    margin: 20,
+    top: '10%',
+    zIndex: 1,
+    position: 'absolute',
+  },
+  locationLabel: {
+    fontSize: getFontSize(14),
+    fontWeight: '600',
+    color: '#ddd',
+    paddingLeft: 1,
+    borderRadius: 50,
+    backgroundColor: '#fff',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    margin: 1,
+  },
+  locationInputContainer: {
+    borderColor: '#ddd',
+    borderBottomWidth: 0.21,
+    width: '100%',
+    textAlign: 'left',
+    fontSize: getFontSize(14),
+    padding: 10,
+  },
+  locationInput: {
+    color: '#000',
+    opacity: 0.51,
+    width: '100%',
+  },
+  loaderContainer: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(255, 255, 255, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 2,
+  },
+});
+
+export default SearchSchedule;
